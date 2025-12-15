@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CP Lock-In</title>
+    <title>CP Lock-In 🔒</title>
     <style>
-        /* We are writing CSS right here for now to keep it simple */
         body {
             background-color: #1a1a1a;
             color: white;
-            font-family: sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -17,48 +16,77 @@
             margin: 0;
         }
         .card {
-            background-color: #333;
-            padding: 30px;
-            border-radius: 15px;
+            background-color: #2d2d2d;
+            padding: 2rem;
+            border-radius: 16px;
             text-align: center;
-            width: 300px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            width: 350px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 1px solid #3d3d3d;
         }
-        input {
-            padding: 10px;
-            width: 80%;
+        h1 { margin-bottom: 0.5rem; font-size: 1.8rem; }
+        p { color: #aaa; margin-top: 0; }
+        
+        input, select {
+            padding: 12px;
+            width: 90%;
             margin-top: 10px;
-            border-radius: 5px;
-            border: none;
-        }
-        button {
-            margin-top: 15px;
-            padding: 10px 20px;
-            background-color: #007bff;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background-color: #1a1a1a;
             color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
+            font-size: 1rem;
+            outline: none;
         }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #result {
+        input:focus, select:focus { border-color: #4ade80; }
+
+        button {
             margin-top: 20px;
-            font-size: 1.2em;
-            color: #4ade80;
+            padding: 12px 24px;
+            width: 100%;
+            background-color: #4ade80;
+            color: #1a1a1a;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 800;
+            font-size: 1rem;
+            transition: transform 0.1s;
+        }
+        button:active { transform: scale(0.98); }
+
+        #result { margin-top: 25px; min-height: 100px; }
+        .tag-badge {
+            background-color: #3b82f6;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-right: 5px;
         }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h1>CP Randomizer </h1>
-        <p>Enter your Codeforces Handle:</p>
+        <h1>CP Randomizer 🎯</h1>
+        <p>Target your weaknesses.</p>
         
-        <input type="text" id="handle" placeholder="e.g. tourist">
-        <button onclick="getRating()">Get My Rating</button>
+        <input type="text" id="handle" placeholder="Codeforces Handle (e.g. tourist)">
+        
+        <select id="tagSelect">
+            <option value="all">🎲 Any Topic</option>
+            <option value="dp">Dynamic Programming</option>
+            <option value="math">Math</option>
+            <option value="greedy">Greedy</option>
+            <option value="graphs">Graphs</option>
+            <option value="data structures">Data Structures</option>
+            <option value="constructive algorithms">Constructive</option>
+            <option value="binary search">Binary Search</option>
+            <option value="number theory">Number Theory</option>
+        </select>
+
+        <button onclick="getProblem()">Lock In 🔒</button>
 
         <div id="result"></div>
     </div>
@@ -67,7 +95,7 @@
         let allProblems = []; 
         let isProblemsLoaded = false;
 
-        // 1. Background Fetch (Keep this, it makes it fast)
+        // 1. Background Fetch
         window.onload = async function() {
             try {
                 let response = await fetch('https://codeforces.com/api/problemset.problems');
@@ -80,16 +108,17 @@
             }
         };
 
-        async function getRating() {
+        async function getProblem() {
             let handle = document.getElementById("handle").value;
+            let tag = document.getElementById("tagSelect").value;
             let resultDiv = document.getElementById("result");
             
             if (!handle) {
-                resultDiv.innerText = "Please enter a handle!";
+                resultDiv.innerHTML = "<span style='color:#ef4444'>Please enter a handle!</span>";
                 return;
             }
 
-            resultDiv.innerText = "Analyzing...";
+            resultDiv.innerHTML = "<p>Analyzing stats...</p>";
 
             try {
                 // 2. Get User Rating
@@ -97,68 +126,66 @@
                 let userData = await userResponse.json();
 
                 if (userData.status === "FAILED") {
-                    resultDiv.innerText = "User not found!";
+                    resultDiv.innerHTML = "<span style='color:#ef4444'>User not found!</span>";
                     return;
                 }
 
                 let currentRating = userData.result[0].rating || 800;
-                
-            
                 let rawTarget = currentRating + 200;
-                
-                // Math.round(1411 / 100) = 14
-                // 14 * 100 = 1400
                 let targetRating = Math.round(rawTarget / 100) * 100;
-                // --- THE FIX ENDS HERE ---
 
-                resultDiv.innerHTML = `
-                    <p>Your Rating: <b>${currentRating}</b></p>
-                    <p>Raw Target: ${rawTarget} → Snap to: <b>${targetRating}</b></p>
-                    <p>Finding a problem...</p>
-                `;
-
-                // 3. Wait for data if needed
+                // 3. Wait for data
                 if (!isProblemsLoaded) {
-                    while (!isProblemsLoaded) {
-                        await new Promise(r => setTimeout(r, 100)); 
-                    }
+                    resultDiv.innerHTML += "<p>Downloading problem set...</p>";
+                    while (!isProblemsLoaded) await new Promise(r => setTimeout(r, 100)); 
                 }
 
-                // 4. Filter
-                let matchingProblems = allProblems.filter(p => p.rating === targetRating);
+                // --- 4. NEW FILTERING LOGIC ---
+                let matchingProblems = allProblems.filter(p => {
+                    // Check Rating
+                    if (p.rating !== targetRating) return false;
+                    
+                    // Check Tag (if not 'all')
+                    if (tag !== "all" && !p.tags.includes(tag)) return false;
 
-                if (matchingProblems.length === 0) {
-                    // Fallback: If 1400 doesn't exist (unlikely), try +100
-                    targetRating += 100;
-                    matchingProblems = allProblems.filter(p => p.rating === targetRating);
-                }
+                    return true;
+                });
 
+                // Fallback: If no problems found for that specific tag + rating
                 if (matchingProblems.length === 0) {
-                    resultDiv.innerHTML += "<p>No problems found even after rounding!</p>";
+                    resultDiv.innerHTML = `
+                        <p style="color:#fbbf24">No ${tag} problems found at ${targetRating} rating.</p>
+                        <p>Try a different topic or rating!</p>
+                    `;
                     return;
                 }
 
-                let randomIndex = Math.floor(Math.random() * matchingProblems.length);
-                let randomProblem = matchingProblems[randomIndex];
-                let problemLink = `https://codeforces.com/contest/${randomProblem.contestId}/problem/${randomProblem.index}`;
+                // 5. Pick Random & Display
+                let randomProblem = matchingProblems[Math.floor(Math.random() * matchingProblems.length)];
+                let link = `https://codeforces.com/contest/${randomProblem.contestId}/problem/${randomProblem.index}`;
 
-                resultDiv.innerHTML += `
-                    <div style="margin-top: 20px; padding: 15px; background-color: #444; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
-                        <h2 style="margin: 0 0 10px 0;">${randomProblem.name}</h2>
-                        <div style="margin-bottom: 15px;">
-                            <span style="background: #333; padding: 5px 10px; border-radius: 4px; font-size: 0.9em;">Rating: ${randomProblem.rating}</span>
-                            <span style="background: #333; padding: 5px 10px; border-radius: 4px; font-size: 0.9em; margin-left: 5px;">${randomProblem.tags[0] || "algo"}</span>
-                        </div>
-                        <a href="${problemLink}" target="_blank" style="background-color: #4ade80; color: #1a1a1a; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Solve Now 🚀</a>
+                resultDiv.innerHTML = `
+                    <div style="animation: fadeIn 0.5s;">
+                        <p style="margin-bottom:5px; color:#888;">Target: <b>${targetRating}</b> | Topic: <b>${tag.toUpperCase()}</b></p>
+                        <h2 style="margin: 10px 0;">${randomProblem.name}</h2>
+                        <a href="${link}" target="_blank" style="
+                            display: inline-block;
+                            margin-top: 10px;
+                            color: #1a1a1a;
+                            background: #4ade80;
+                            padding: 10px 20px;
+                            text-decoration: none;
+                            border-radius: 6px;
+                            font-weight: bold;
+                        ">Open Problem 🚀</a>
                     </div>
                 `;
 
             } catch (error) {
                 console.error(error);
-                resultDiv.innerText = "Error. Check Console.";
+                resultDiv.innerText = "Error fetching data.";
             }
         }
     </script>
-               
 </body>
 </html>
