@@ -64,20 +64,19 @@
     </div>
 
     <script>
-        let allProblems = []; // Global variable to store problems
+        let allProblems = []; 
         let isProblemsLoaded = false;
 
-        // 1. Start fetching problems IMMEDIATELY when page loads
+        // 1. Background Fetch (Keep this, it makes it fast)
         window.onload = async function() {
             try {
-                console.log("Background fetching started...");
                 let response = await fetch('https://codeforces.com/api/problemset.problems');
                 let data = await response.json();
                 allProblems = data.result.problems;
                 isProblemsLoaded = true;
                 console.log("Problems loaded!");
             } catch (error) {
-                console.error("Background fetch failed", error);
+                console.error("Fetch failed", error);
             }
         };
 
@@ -90,10 +89,10 @@
                 return;
             }
 
-            resultDiv.innerText = "Checking User Stats...";
+            resultDiv.innerText = "Analyzing...";
 
             try {
-                // 2. Only fetch User Data on click (It's fast)
+                // 2. Get User Rating
                 let userResponse = await fetch(`https://codeforces.com/api/user.info?handles=${handle}`);
                 let userData = await userResponse.json();
 
@@ -102,28 +101,40 @@
                     return;
                 }
 
-                let currentRating = userData.result[0].rating || 800; // Default to 800 if unrated
-                let targetRating = currentRating + 200;
+                let currentRating = userData.result[0].rating || 800;
+                
+                // --- THE FIX STARTS HERE ---
+                let rawTarget = currentRating + 200;
+                
+                // Math.round(1411 / 100) = 14
+                // 14 * 100 = 1400
+                let targetRating = Math.round(rawTarget / 100) * 100;
+                // --- THE FIX ENDS HERE ---
 
                 resultDiv.innerHTML = `
-                    <p>Current Rating: <b>${currentRating}</b></p>
-                    <p>Target: <b>${targetRating}</b></p>
-                    <p>Picking a problem...</p>
+                    <p>Your Rating: <b>${currentRating}</b></p>
+                    <p>Raw Target: ${rawTarget} → Snap to: <b>${targetRating}</b></p>
+                    <p>Finding a problem...</p>
                 `;
 
-                // 3. Wait for problems if they aren't ready yet (Fallback)
+                // 3. Wait for data if needed
                 if (!isProblemsLoaded) {
-                    resultDiv.innerText += " (Still downloading problem set, one sec...)";
                     while (!isProblemsLoaded) {
-                        await new Promise(r => setTimeout(r, 500)); // Wait 0.5s checks
+                        await new Promise(r => setTimeout(r, 100)); 
                     }
                 }
 
-                // 4. Filter Instantaneously from Memory
+                // 4. Filter
                 let matchingProblems = allProblems.filter(p => p.rating === targetRating);
 
                 if (matchingProblems.length === 0) {
-                    resultDiv.innerHTML += "<p>No problems found at this specific rating!</p>";
+                    // Fallback: If 1400 doesn't exist (unlikely), try +100
+                    targetRating += 100;
+                    matchingProblems = allProblems.filter(p => p.rating === targetRating);
+                }
+
+                if (matchingProblems.length === 0) {
+                    resultDiv.innerHTML += "<p>No problems found even after rounding!</p>";
                     return;
                 }
 
@@ -132,9 +143,13 @@
                 let problemLink = `https://codeforces.com/contest/${randomProblem.contestId}/problem/${randomProblem.index}`;
 
                 resultDiv.innerHTML += `
-                    <div style="margin-top: 20px; padding: 10px; background-color: #444; border-radius: 8px;">
-                        <h3>${randomProblem.name}</h3>
-                        <a href="${problemLink}" target="_blank" style="color: #4ade80; font-size: 1.2em;">Solve Now 🚀</a>
+                    <div style="margin-top: 20px; padding: 15px; background-color: #444; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                        <h2 style="margin: 0 0 10px 0;">${randomProblem.name}</h2>
+                        <div style="margin-bottom: 15px;">
+                            <span style="background: #333; padding: 5px 10px; border-radius: 4px; font-size: 0.9em;">Rating: ${randomProblem.rating}</span>
+                            <span style="background: #333; padding: 5px 10px; border-radius: 4px; font-size: 0.9em; margin-left: 5px;">${randomProblem.tags[0] || "algo"}</span>
+                        </div>
+                        <a href="${problemLink}" target="_blank" style="background-color: #4ade80; color: #1a1a1a; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Solve Now 🚀</a>
                     </div>
                 `;
 
@@ -144,9 +159,6 @@
             }
         }
     </script>
-
-   
-
                
 </body>
 </html>
