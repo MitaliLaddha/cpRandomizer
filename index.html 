@@ -54,7 +54,7 @@
 <body>
 
     <div class="card">
-        <h1>CP Randomizer 🎲</h1>
+        <h1>CP Randomizer </h1>
         <p>Enter your Codeforces Handle:</p>
         
         <input type="text" id="handle" placeholder="e.g. tourist">
@@ -103,7 +103,7 @@
 
                 let currentRating = userData.result[0].rating || 800;
                 
-                // --- THE FIX STARTS HERE ---
+            
                 let rawTarget = currentRating + 200;
                 
                 // Math.round(1411 / 100) = 14
