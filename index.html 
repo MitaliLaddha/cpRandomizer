@@ -95,7 +95,7 @@
         let allProblems = []; 
         let isProblemsLoaded = false;
 
-        // 1. Background Fetch
+        // 1. Background Fetch Problems
         window.onload = async function() {
             try {
                 let response = await fetch('https://codeforces.com/api/problemset.problems');
@@ -118,55 +118,71 @@
                 return;
             }
 
-            resultDiv.innerHTML = "<p>Analyzing stats...</p>";
+            resultDiv.innerHTML = "<p>Scanning your brain (history)...</p>";
 
             try {
-                // 2. Get User Rating
-                let userResponse = await fetch(`https://codeforces.com/api/user.info?handles=${handle}`);
-                let userData = await userResponse.json();
+                // 2. Parallel Fetch: Get Rating AND Solved History
+                let [userResponse, statusResponse] = await Promise.all([
+                    fetch(`https://codeforces.com/api/user.info?handles=${handle}`),
+                    fetch(`https://codeforces.com/api/user.status?handle=${handle}`)
+                ]);
 
-                if (userData.status === "FAILED") {
-                    resultDiv.innerHTML = "<span style='color:#ef4444'>User not found!</span>";
+                let userData = await userResponse.json();
+                let statusData = await statusResponse.json();
+
+                if (userData.status === "FAILED" || statusData.status === "FAILED") {
+                    resultDiv.innerHTML = "<span style='color:#ef4444'>User not found or API error!</span>";
                     return;
                 }
+
+                // 3. Create a "Set" of solved problems (Fast lookup)
+                let solvedSet = new Set();
+                statusData.result.forEach(submission => {
+                    if (submission.verdict === "OK") {
+                        // Store "ContestID + Index" (e.g., "1500A")
+                        solvedSet.add(`${submission.problem.contestId}${submission.problem.index}`);
+                    }
+                });
 
                 let currentRating = userData.result[0].rating || 800;
                 let rawTarget = currentRating + 200;
                 let targetRating = Math.round(rawTarget / 100) * 100;
 
-                // 3. Wait for data
+                // 4. Wait for problem set
                 if (!isProblemsLoaded) {
                     resultDiv.innerHTML += "<p>Downloading problem set...</p>";
                     while (!isProblemsLoaded) await new Promise(r => setTimeout(r, 100)); 
                 }
 
-                // --- 4. NEW FILTERING LOGIC ---
+                // 5. Filter: Rating + Tag + NOT SOLVED
                 let matchingProblems = allProblems.filter(p => {
-                    // Check Rating
                     if (p.rating !== targetRating) return false;
-                    
-                    // Check Tag (if not 'all')
                     if (tag !== "all" && !p.tags.includes(tag)) return false;
+                    
+                    // The Magic Line: Check if user already solved it
+                    let problemId = `${p.contestId}${p.index}`;
+                    if (solvedSet.has(problemId)) return false;
 
                     return true;
                 });
 
-                // Fallback: If no problems found for that specific tag + rating
                 if (matchingProblems.length === 0) {
                     resultDiv.innerHTML = `
-                        <p style="color:#fbbf24">No ${tag} problems found at ${targetRating} rating.</p>
-                        <p>Try a different topic or rating!</p>
+                        <p style="color:#fbbf24">Wow! You cleared them all.</p>
+                        <p>No unsolved ${tag} problems found at ${targetRating}.</p>
                     `;
                     return;
                 }
 
-                // 5. Pick Random & Display
                 let randomProblem = matchingProblems[Math.floor(Math.random() * matchingProblems.length)];
                 let link = `https://codeforces.com/contest/${randomProblem.contestId}/problem/${randomProblem.index}`;
 
                 resultDiv.innerHTML = `
                     <div style="animation: fadeIn 0.5s;">
-                        <p style="margin-bottom:5px; color:#888;">Target: <b>${targetRating}</b> | Topic: <b>${tag.toUpperCase()}</b></p>
+                        <p style="margin-bottom:5px; color:#888;">
+                            Target: <b>${targetRating}</b> | 
+                            Unsolved Filter: <b style="color:#4ade80">ACTIVE</b>
+                        </p>
                         <h2 style="margin: 10px 0;">${randomProblem.name}</h2>
                         <a href="${link}" target="_blank" style="
                             display: inline-block;
@@ -177,7 +193,7 @@
                             text-decoration: none;
                             border-radius: 6px;
                             font-weight: bold;
-                        ">Open Problem 🚀</a>
+                        ">Solve Now 🚀</a>
                     </div>
                 `;
 
@@ -187,5 +203,6 @@
             }
         }
     </script>
+    
 </body>
 </html>
